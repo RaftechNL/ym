@@ -1,0 +1,13 @@
+modules:
+    my_module:
+        source: "github.com/example/module"
+        version: "v1.6.0"
+        providerAliasRef: "my_provider2"
+    my_module2:
+        source: "github.com/example/module"
+        version: "v1.6.0"
+        providerAliasRef: "my_provider2"      
+    my_module3:
+        source: "github.com/example/module"
+        version: "v1.6.0"
+        providerAliasRef: "my_provider2"                
