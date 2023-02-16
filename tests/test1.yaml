@@ -1,0 +1,10 @@
+providers:
+    my_provider:
+        providerType: github
+        auth:
+            ssh_key: "ssh:key:2312312"
+modules:
+    my_module:
+        source: "github.com/example/module"
+        version: "v1.0.0"
+        providerAliasRef: "my_provider2"

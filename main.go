@@ -1,17 +1,15 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
+	"strings"
 
 	"github.com/labstack/gommon/log"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var version = "v0.0.1"
@@ -40,14 +38,13 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			ctx := context.Background()
 
 			// Read input files
 			inputFiles := c.StringSlice("input")
 			if len(inputFiles) <= 0 {
 				return cli.ShowAppHelp(c)
 			}
-			mergedData, err := MergeYAML(ctx, inputFiles...)
+			mergedData, err := MergeYAML(inputFiles...)
 			if err != nil {
 				return err
 			}
@@ -73,89 +70,55 @@ func main() {
 	}
 }
 
-func MergeYAML(ctx context.Context, filenames ...string) ([]byte, error) {
-	if len(filenames) <= 0 {
-		return nil, errors.New("You must provide at least one filename for merging YAML files")
+func removeLastLineIfEmpty(s string) string {
+	lines := strings.Split(s, "\n")
+	lastLine := strings.TrimSpace(lines[len(lines)-1])
+	if lastLine == "" {
+		lines = lines[:len(lines)-1]
 	}
+	return strings.Join(lines, "\n")
+}
 
-	var buf bytes.Buffer
-	encoder := yaml.NewEncoder(&buf)
-
-	var resultValues sync.Map
-
+func MergeYAML(filenames ...string) ([]byte, error) {
+	if len(filenames) <= 0 {
+		return nil, errors.New("You must provide at least one filename for reading Values")
+	}
+	var resultValues map[string]interface{}
 	for _, filename := range filenames {
-		// Check if the context has been cancelled
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
 
 		var override map[string]interface{}
 		bs, err := ioutil.ReadFile(filename)
 		if err != nil {
 			log.Info(err)
-			continue
+			return nil, fmt.Errorf("failed to read file %q: %w", filename, err)
 		}
 		if err := yaml.Unmarshal(bs, &override); err != nil {
 			log.Info(err)
-			continue
+			return nil, fmt.Errorf("failed to unmarshal data from file %q: %w", filename, err)
 		}
 
-		// Merge override map with resultValues map
-		resultValues.Range(func(key, value interface{}) bool {
-			overrideKey := key.(string)
-			overrideValue := value
-			if _, ok := override[overrideKey]; !ok {
-				override[overrideKey] = overrideValue
-			}
-			return true
-		})
-
-		// Store merged map in resultValues
-		resultValues.Store(filename, override)
-
-		// Encode override map to buffer
-		if err := encoder.Encode(override); err != nil {
-			log.Info(err)
-			continue
-		}
-	}
-
-	// Check if the context has been cancelled
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
-	if err := encoder.Close(); err != nil {
-		log.Info(err)
-		return nil, err
-	}
-
-	var mergedMap map[string]interface{}
-	resultValues.Range(func(key, value interface{}) bool {
-		override := value.(map[string]interface{})
-		if mergedMap == nil {
-			mergedMap = override
+		//check if is nil. This will only happen for the first filename
+		if resultValues == nil {
+			resultValues = override
 		} else {
 			for k, v := range override {
-				mergedMap[k] = v
+				// Check if value is nil before adding to resultValues
+				if v != nil {
+					resultValues[k] = v
+				}
 			}
 		}
-		return true
-	})
 
-	bs, err := yaml.Marshal(mergedMap)
+	}
+
+	bs, err := yaml.Marshal(resultValues)
 	if err != nil {
 		log.Info(err)
 		return nil, err
 	}
 
-	// Save result to file
-	if err := ioutil.WriteFile("result.yaml", bs, 0644); err != nil {
-		fmt.Println(err)
+	if err != nil {
+		log.Info(err)
 		return nil, err
 	}
 
