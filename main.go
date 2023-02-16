@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/labstack/gommon/log"
 	"github.com/urfave/cli/v2"
@@ -70,22 +69,40 @@ func main() {
 	}
 }
 
-func removeLastLineIfEmpty(s string) string {
-	lines := strings.Split(s, "\n")
-	lastLine := strings.TrimSpace(lines[len(lines)-1])
-	if lastLine == "" {
-		lines = lines[:len(lines)-1]
+func mergeMaps(dst, src map[string]interface{}) {
+	for k, v := range src {
+		if _, ok := dst[k]; !ok {
+			// key does not exist in dst, just copy from src
+			dst[k] = v
+			continue
+		}
+
+		// key exists in both dst and src, need to merge recursively
+		dstValue := dst[k]
+		switch dstValue := dstValue.(type) {
+		case map[string]interface{}:
+			srcValue, ok := v.(map[string]interface{})
+			if !ok {
+				// type mismatch, just copy from src
+				dst[k] = v
+				continue
+			}
+			mergeMaps(dstValue, srcValue)
+		default:
+			// type mismatch or dst has scalar value, just copy from src
+			dst[k] = v
+			continue
+		}
 	}
-	return strings.Join(lines, "\n")
 }
 
 func MergeYAML(filenames ...string) ([]byte, error) {
 	if len(filenames) <= 0 {
 		return nil, errors.New("You must provide at least one filename for reading Values")
 	}
-	var resultValues map[string]interface{}
-	for _, filename := range filenames {
 
+	resultValues := make(map[string]interface{})
+	for _, filename := range filenames {
 		var override map[string]interface{}
 		bs, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -96,27 +113,10 @@ func MergeYAML(filenames ...string) ([]byte, error) {
 			log.Info(err)
 			return nil, fmt.Errorf("failed to unmarshal data from file %q: %w", filename, err)
 		}
-
-		//check if is nil. This will only happen for the first filename
-		if resultValues == nil {
-			resultValues = override
-		} else {
-			for k, v := range override {
-				// Check if value is nil before adding to resultValues
-				if v != nil {
-					resultValues[k] = v
-				}
-			}
-		}
-
+		mergeMaps(resultValues, override)
 	}
 
 	bs, err := yaml.Marshal(resultValues)
-	if err != nil {
-		log.Info(err)
-		return nil, err
-	}
-
 	if err != nil {
 		log.Info(err)
 		return nil, err
