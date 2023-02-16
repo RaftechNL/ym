@@ -8,6 +8,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMergeYAML_InvertedMergeOrder(t *testing.T) {
+	result, err := MergeYAML("tests/test2.yaml", "tests/test1.yaml")
+	assert.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(`
+modules:
+    my_module:
+        providerAliasRef: my_provider2
+        source: github.com/example/module
+        version: v1.0.0
+    my_module2:
+        providerAliasRef: my_provider2
+        source: github.com/example/module
+        version: v1.6.0
+    my_module3:
+        providerAliasRef: my_provider2
+        source: github.com/example/module
+        version: v1.6.0
+providers:
+    my_provider:
+        auth:
+            ssh_key: ssh:key:2312312
+        providerType: github
+`), strings.TrimSpace(string(result)))
+}
+
 func TestMergeYAML_TwoFiles(t *testing.T) {
 	result, err := MergeYAML("tests/test1.yaml", "tests/test2.yaml")
 	assert.NoError(t, err)
