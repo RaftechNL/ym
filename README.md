@@ -1,4 +1,4 @@
-# cli-yaml-merger
+# ym
 
 ![Logo](https://img.raftech.nl/white_logo_color1_background.png)
 
