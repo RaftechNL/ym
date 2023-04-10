@@ -38,4 +38,4 @@ brews:
     homepage: "https://github.com/RaftechNL/ym"
     tap:
       owner: RaftechNL
-      name: homebrew-raftech
+      name: homebrew-toolbox
