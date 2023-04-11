@@ -36,8 +36,8 @@ The yaml-merge CLI reads one or more YAML files and merges them into a single YA
 
 ### Homebrew
 ```shell
-brew tap  RaftechNL/raftech
-brew install raftechnl/raftech/ym
+brew tap  RaftechNL/toolbox
+brew install raftechnl/toolbox/ym
 ```
 
 ## Example
